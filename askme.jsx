@@ -1,120 +1,63 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const AskSanju = () => {
+const AskAI = () => {
     const [messages, setMessages] = useState([]);
     const [chats, setChats] = useState([]);
     const [currentChatId, setCurrentChatId] = useState(null);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [userEmail, setUserEmail] = useState('');
-    const [userName, setUserName] = useState('');
-    const [attachment, setAttachment] = useState(null);
     const [isListening, setIsListening] = useState(false);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
     const messagesEndRef = useRef(null);
     const filePickerRef = useRef(null);
     const recognitionRef = useRef(null);
 
-    // Initial Load - Check Authentication
+    // Authentication Check
     useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const token = localStorage.getItem('access_token');
-                const storedEmail = localStorage.getItem('user_email');
-                const storedName = localStorage.getItem('user_name');
+        const token = localStorage.getItem('access_token');
+        const email = localStorage.getItem('user_email');
 
-                if (token && storedEmail) {
-                    setUserEmail(storedEmail);
-                    setUserName(storedName || storedEmail.split('@')[0]);
-                    setIsAuthenticated(true);
-                    loadChatHistory(storedEmail);
-                } else {
-                    setShowAuthModal(true);
-                }
-            } catch (e) {
-                console.error("Auth check failed", e);
-                setShowAuthModal(true);
-            }
-        };
-        checkAuth();
+        if (token && email) {
+            setUserEmail(email);
+            loadSampleChats();
+        } else {
+            window.location.href = '/login';
+        }
     }, []);
 
-    // Load Chat History from Backend
-    const loadChatHistory = async (email) => {
-        try {
-            const res = await fetch(`http://127.0.0.1:8000/user-chats/${email}`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setChats(data.chats || []);
-            }
-        } catch (e) {
-            console.error("Failed to load chat history", e);
-        }
+    const loadSampleChats = () => {
+        const sampleChats = [
+            { id: '1', title: 'Python Best Practices', messages: [], created_at: new Date().toISOString() },
+            { id: '2', title: 'Database Design Tips', messages: [], created_at: new Date().toISOString() },
+            { id: '3', title: 'React Optimization', messages: [], created_at: new Date().toISOString() },
+        ];
+        setChats(sampleChats);
     };
 
-    // Save Chat to Backend
-    const saveChatToBackend = async (chatData) => {
-        try {
-            const res = await fetch('http://127.0.0.1:8000/save-chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                },
-                body: JSON.stringify({
-                    email: userEmail,
-                    chat_id: chatData.id,
-                    title: chatData.title,
-                    messages: chatData.messages
-                })
-            });
-            return res.ok;
-        } catch (e) {
-            console.error("Failed to save chat", e);
-            return false;
-        }
-    };
-
-    // Voice Setup
+    // Voice Recognition Setup
     useEffect(() => {
-        if ('webkitSpeechRecognition' in window) {
-            try {
-                const SpeechRecognition = window.webkitSpeechRecognition;
-                recognitionRef.current = new SpeechRecognition();
-                recognitionRef.current.continuous = true;
-                recognitionRef.current.interimResults = true;
-                recognitionRef.current.lang = 'en-US';
-                
-                recognitionRef.current.onstart = () => setIsListening(true);
-                recognitionRef.current.onend = () => setIsListening(false);
-                recognitionRef.current.onresult = (e) => {
-                    let transcript = '';
-                    for (let i = e.resultIndex; i < e.results.length; i++) {
-                        transcript += e.results[i][0].transcript;
-                        if (e.results[i].isFinal) {
-                            setInput(prev => prev + ' ' + transcript);
-                        }
-                    }
-                };
-                recognitionRef.current.onerror = (e) => {
-                    console.error("Speech error", e.error);
-                    setIsListening(false);
-                };
-            } catch (e) {
-                console.error("Speech recognition error", e);
-            }
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = false;
+            recognitionRef.current.interimResults = true;
+
+            recognitionRef.current.onstart = () => setIsListening(true);
+            recognitionRef.current.onend = () => setIsListening(false);
+            recognitionRef.current.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                setInput(prev => prev + (prev ? ' ' : '') + transcript);
+            };
         }
     }, []);
 
     const toggleVoice = () => {
-        if (!isAuthenticated) {
-            setShowAuthModal(true);
-            return;
-        }
         if (isListening) {
             recognitionRef.current?.stop();
         } else {
@@ -123,73 +66,67 @@ const AskSanju = () => {
     };
 
     const handleSend = async () => {
-        if (!isAuthenticated) {
-            setShowAuthModal(true);
-            return;
-        }
-
-        if (!input.trim() && !attachment || isLoading) return;
+        if (!input.trim() || isLoading) return;
 
         const userMsg = input.trim();
-        const newMsg = { role: 'user', content: userMsg, timestamp: new Date().toISOString() };
-        const updatedMessages = [...messages, newMsg];
+        const newUserMsg = { role: 'user', content: userMsg, timestamp: new Date().toISOString() };
+        const updatedMessages = [...messages, newUserMsg];
 
         setMessages(updatedMessages);
         setInput('');
-        setAttachment(null);
         setIsLoading(true);
 
-        // Session logic
-        let targetId = currentChatId;
-        if (!targetId) {
-            targetId = Date.now().toString();
-            setCurrentChatId(targetId);
-            const newChat = { id: targetId, title: userMsg.substring(0, 30) || 'New Conversation', messages: [], created_at: new Date().toISOString() };
+        // Create new chat if needed
+        let targetChatId = currentChatId;
+        if (!targetChatId) {
+            targetChatId = Date.now().toString();
+            setCurrentChatId(targetChatId);
+            const newChat = {
+                id: targetChatId,
+                title: userMsg.substring(0, 50) + (userMsg.length > 50 ? '...' : ''),
+                messages: [],
+                created_at: new Date().toISOString()
+            };
             setChats(prev => [newChat, ...prev]);
         }
 
-        const isImage = userMsg.toLowerCase().includes('generate') || userMsg.toLowerCase().includes('image') || userMsg.toLowerCase().includes('draw') || userMsg.toLowerCase().includes('create picture');
-        const endpoint = isImage ? 'http://127.0.0.1:8000/generate-image' : 'http://127.0.0.1:8000/ask';
-
         try {
-            const res = await fetch(endpoint, {
+            const response = await fetch('http://127.0.0.1:8000/ask', {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                 },
                 body: JSON.stringify({
                     message: userMsg,
-                    system_prompt: `You are AskSanju, a professional, helpful, and intelligent AI assistant. You are designed to assist users with a wide range of tasks including writing, analysis, coding, research, creative work, and problem-solving. You respond in the same language as the user, support multilingual communication, and provide accurate, well-structured responses. User: ${userName} (${userEmail})`,
-                    user_email: userEmail
+                    system_prompt: `You are AskAI, a professional and highly intelligent AI assistant. Provide expert-level responses with clear structure and actionable insights. Be concise yet comprehensive in your answers.`
                 }),
             });
-            const data = await res.json();
 
-            const aiReply = isImage ?
-                { role: 'assistant', type: 'image', content: data.image_url, timestamp: new Date().toISOString() } :
-                { role: 'assistant', content: data.response || 'I have processed your request. How can I assist you further?', timestamp: new Date().toISOString() };
+            const data = await response.json();
+            const aiResponse = data.response || 'I encountered an issue processing your request. Please try again.';
+            
+            const newAssistantMsg = {
+                role: 'assistant',
+                content: aiResponse,
+                timestamp: new Date().toISOString()
+            };
 
-            const finalMsgs = [...updatedMessages, aiReply];
-            setMessages(finalMsgs);
+            const finalMessages = [...updatedMessages, newAssistantMsg];
+            setMessages(finalMessages);
 
-            // Update chat in state
-            setChats(prev => prev.map(c => {
-                if (c.id === targetId) {
-                    return { ...c, messages: finalMsgs };
-                }
-                return c;
-            }));
-
-            // Save to backend
-            saveChatToBackend({ id: targetId, title: chats.find(c => c.id === targetId)?.title || 'Conversation', messages: finalMsgs });
+            // Update chat with new messages
+            setChats(prev => prev.map(chat =>
+                chat.id === targetChatId ? { ...chat, messages: finalMessages } : chat
+            ));
         } catch (error) {
-            console.error("API error:", error);
-            setMessages(prev => [...prev, { 
-                role: 'assistant', 
-                content: 'Connection error. Please verify your internet connection and try again.', 
-                timestamp: new Date().toISOString() 
-            }]);
+            console.error('API Error:', error);
+            const errorMsg = {
+                role: 'assistant',
+                content: 'Sorry, I encountered a connection error. Please check your internet and try again.',
+                timestamp: new Date().toISOString()
+            };
+            setMessages(prev => [...prev, errorMsg]);
         } finally {
             setIsLoading(false);
         }
@@ -200,7 +137,16 @@ const AskSanju = () => {
         setMessages(chat.messages || []);
     };
 
-    const newSession = () => {
+    const deleteChat = (chatId) => {
+        setChats(prev => prev.filter(c => c.id !== chatId));
+        if (currentChatId === chatId) {
+            setCurrentChatId(null);
+            setMessages([]);
+        }
+        setShowDeleteConfirm(null);
+    };
+
+    const startNewChat = () => {
         setCurrentChatId(null);
         setMessages([]);
     };
@@ -209,13 +155,6 @@ const AskSanju = () => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_email');
-        localStorage.removeItem('user_name');
-        setIsAuthenticated(false);
-        setShowAuthModal(true);
-        setMessages([]);
-    };
-
-    const goToLogin = () => {
         window.location.href = '/login';
     };
 
@@ -227,179 +166,225 @@ const AskSanju = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
 
-    if (showAuthModal) {
-        return (
-            <div style={styles.authModalContainer}>
-                <div style={styles.authModal}>
-                    <div style={styles.authHeader}>
-                        <h1 style={styles.authTitle}>AskSanju Professional</h1>
-                        <p style={styles.authSubtitle}>Your Intelligent AI Assistant</p>
-                    </div>
-                    <div style={styles.authContent}>
-                        <p style={styles.authDescription}>
-                            Welcome to AskSanju - A professional multilingual AI chatbot designed to help you with writing, analysis, coding, research, and more.
-                        </p>
-                        <div style={styles.authFeatures}>
-                            <div style={styles.feature}>
-                                <span style={styles.featureIcon}>⚡</span>
-                                <span>Professional AI Responses</span>
-                            </div>
-                            <div style={styles.feature}>
-                                <span style={styles.featureIcon}>🌐</span>
-                                <span>Multilingual Support</span>
-                            </div>
-                            <div style={styles.feature}>
-                                <span style={styles.featureIcon}>💾</span>
-                                <span>Chat History Saved</span>
-                            </div>
-                            <div style={styles.feature}>
-                                <span style={styles.featureIcon}>🎯</span>
-                                <span>Personalized Experience</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div style={styles.authActions}>
-                        <button style={{ ...styles.authBtn, background: '#000', color: '#fff' }} onClick={goToLogin}>
-                            Login
-                        </button>
-                        <button style={{ ...styles.authBtn, background: '#f0f0f0', color: '#000' }} onClick={goToDashboard}>
-                            Go to Dashboard
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    const userInitial = userEmail ? userEmail[0].toUpperCase() : 'U';
 
     return (
         <div style={styles.container}>
-            <aside style={styles.sidebar}>
-                <div style={styles.logoArea}>
-                    <div style={styles.logoBox}>S</div>
-                    <span style={styles.logoText}>AskSanju</span>
+            {/* Sidebar */}
+            <aside style={{ ...styles.sidebar, display: sidebarOpen ? 'flex' : 'none' }}>
+                <div style={styles.sidebarHeader}>
+                    <div style={styles.logo}>
+                        <div style={styles.logoIcon}>💡</div>
+                        <h1 style={styles.logoText}>AskAI</h1>
+                    </div>
+                    <button 
+                        onClick={() => setSidebarOpen(false)}
+                        style={styles.closeBtn}
+                    >
+                        ✕
+                    </button>
                 </div>
-                <button style={styles.newBtn} onClick={newSession}>+ New Conversation</button>
-                <div style={styles.sectionTitle}>Your Conversations</div>
-                <div style={styles.historyList}>
-                    {chats && chats.length > 0 ? (
-                        chats.map(chat => (
-                            <div key={chat.id}
-                                style={{ ...styles.navLink, background: currentChatId === chat.id ? '#e0e0e0' : 'transparent' }}
-                                onClick={() => loadChat(chat)}
-                                title={chat.title}>
-                                💬 {chat.title}
-                            </div>
-                        ))
-                    ) : (
-                        <div style={{ padding: '12px', fontSize: '13px', color: '#999' }}>No conversations yet</div>
-                    )}
+
+                <button onClick={startNewChat} style={styles.newChatBtn}>
+                    + New Chat
+                </button>
+
+                <div style={styles.sidebarSection}>
+                    <h3 style={styles.sectionTitle}>Chat History</h3>
+                    <div style={styles.chatList}>
+                        {chats.length > 0 ? (
+                            chats.map(chat => (
+                                <div
+                                    key={chat.id}
+                                    style={{
+                                        ...styles.chatItem,
+                                        background: currentChatId === chat.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                        borderLeft: currentChatId === chat.id ? '3px solid #3b82f6' : 'none'
+                                    }}
+                                    onClick={() => loadChat(chat)}
+                                >
+                                    <span style={styles.chatItemText}>{chat.title}</span>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowDeleteConfirm(chat.id);
+                                        }}
+                                        style={styles.deleteBtn}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))
+                        ) : (
+                            <p style={styles.emptyText}>No chats yet</p>
+                        )}
+                    </div>
                 </div>
+
+                {showDeleteConfirm && (
+                    <div style={styles.confirmDialog}>
+                        <p>Delete this chat?</p>
+                        <div style={styles.confirmButtons}>
+                            <button 
+                                onClick={() => deleteChat(showDeleteConfirm)}
+                                style={styles.confirmBtn}
+                            >
+                                Yes
+                            </button>
+                            <button 
+                                onClick={() => setShowDeleteConfirm(null)}
+                                style={styles.cancelBtn}
+                            >
+                                No
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div style={styles.sidebarFooter}>
-                    <button style={styles.dashboardBtn} onClick={goToDashboard}>📊 Dashboard</button>
-                    <button style={styles.logoutBtn} onClick={handleLogout}>🚪 Logout</button>
+                    <button onClick={goToDashboard} style={styles.dashboardBtn}>
+                        📊 Dashboard
+                    </button>
+                    <button onClick={handleLogout} style={styles.logoutBtn}>
+                        🚪 Logout
+                    </button>
                 </div>
             </aside>
 
+            {/* Main Content */}
             <main style={styles.main}>
+                {/* Header */}
                 <header style={styles.header}>
-                    <div>
-                        <div style={styles.model}>AskSanju Professional AI</div>
-                        <div style={styles.modelSub}>Powered by Advanced Intelligence</div>
-                    </div>
-                    <div style={styles.userArea}>
-                        <div style={styles.userInfo}>
-                            <div style={styles.userName}>{userName}</div>
-                            <div style={styles.userEmail}>{userEmail}</div>
+                    <div style={styles.headerLeft}>
+                        {!sidebarOpen && (
+                            <button 
+                                onClick={() => setSidebarOpen(true)}
+                                style={styles.menuBtn}
+                            >
+                                ☰
+                            </button>
+                        )}
+                        <div>
+                            <h2 style={styles.headerTitle}>AskAI Assistant</h2>
+                            <p style={styles.headerSub}>Professional AI for your queries</p>
                         </div>
-                        <div style={styles.avatar}>{userName[0]?.toUpperCase() || userEmail[0]?.toUpperCase() || '?'}</div>
+                    </div>
+                    <div style={styles.userProfile}>
+                        <span style={styles.userEmail}>{userEmail}</span>
+                        <div style={styles.avatar}>{userInitial}</div>
                     </div>
                 </header>
 
-                <div style={styles.scrollArea}>
+                {/* Chat Area */}
+                <div style={styles.chatArea}>
                     {messages.length === 0 ? (
-                        <div style={styles.hero}>
-                            <h1 style={styles.heroText}>How can I assist you today?</h1>
-                            <p style={styles.heroSubtext}>Ask me anything - I support writing, coding, analysis, research, creative work, and more.</p>
+                        <div style={styles.welcomeSection}>
+                            <div style={styles.welcomeIcon}>🤖</div>
+                            <h1 style={styles.welcomeTitle}>Welcome to AskAI</h1>
+                            <p style={styles.welcomeSubtitle}>Your intelligent assistant for every question</p>
                             <div style={styles.suggestionsGrid}>
-                                <div style={styles.suggestion}>📝 Write & Edit</div>
-                                <div style={styles.suggestion}>💻 Code & Debug</div>
-                                <div style={styles.suggestion}>🔍 Research & Analysis</div>
-                                <div style={styles.suggestion}>🎨 Creative Tasks</div>
+                                <div style={styles.suggestionCard}>
+                                    <span style={styles.suggestionIcon}>💻</span>
+                                    <span>Coding Help</span>
+                                </div>
+                                <div style={styles.suggestionCard}>
+                                    <span style={styles.suggestionIcon}>📚</span>
+                                    <span>Learning</span>
+                                </div>
+                                <div style={styles.suggestionCard}>
+                                    <span style={styles.suggestionIcon}>✍️</span>
+                                    <span>Writing</span>
+                                </div>
+                                <div style={styles.suggestionCard}>
+                                    <span style={styles.suggestionIcon}>🔍</span>
+                                    <span>Analysis</span>
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        <div style={styles.msgList}>
-                            {messages.map((m, i) => (
-                                <div key={i} style={styles.msgWrap}>
-                                    <div style={{ ...styles.msgIcon, background: m.role === 'user' ? '#0369a1' : '#1f2937', color: '#fff' }}>
-                                        {m.role === 'user' ? 'YOU' : 'ASK'}
-                                    </div>
-                                    <div style={styles.msgBody}>
-                                        <div style={styles.msgHeader}>
-                                            <b style={styles.msgRole}>{m.role === 'user' ? 'You' : 'AskSanju'}</b>
-                                            {m.timestamp && <span style={styles.timestamp}>{new Date(m.timestamp).toLocaleTimeString()}</span>}
-                                        </div>
-                                        {m.type === 'image' ? (
-                                            <img src={m.content} style={styles.img} alt="Generated by AskSanju" />
-                                        ) : (
-                                            <div style={styles.msgTxt}>{m.content}</div>
-                                        )}
+                        <div style={styles.messagesList}>
+                            {messages.map((msg, idx) => (
+                                <div key={idx} style={styles.messageWrapper}>
+                                    <div style={{
+                                        ...styles.messageBubble,
+                                        background: msg.role === 'user' ? '#3b82f6' : '#f3f4f6',
+                                        color: msg.role === 'user' ? '#fff' : '#1f2937',
+                                        alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                        maxWidth: '70%'
+                                    }}>
+                                        <p style={styles.messageText}>{msg.content}</p>
+                                        <span style={styles.messageTime}>
+                                            {new Date(msg.timestamp).toLocaleTimeString()}
+                                        </span>
                                     </div>
                                 </div>
                             ))}
                             {isLoading && (
-                                <div style={styles.msgWrap}>
-                                    <div style={{ ...styles.msgIcon, background: '#1f2937', color: '#fff' }}>ASK</div>
-                                    <div style={styles.msgBody}>
-                                        <b style={styles.msgRole}>AskSanju</b>
-                                        <div style={styles.typing}>⏳ Processing your request...</div>
+                                <div style={styles.messageWrapper}>
+                                    <div style={styles.typingBubble}>
+                                        <span style={styles.typingDot}></span>
+                                        <span style={styles.typingDot}></span>
+                                        <span style={styles.typingDot}></span>
                                     </div>
                                 </div>
                             )}
                             <div ref={messagesEndRef} />
                         </div>
                     )}
+                </div>
 
-                    <div style={styles.inputStack}>
-                        <div style={styles.inputBar}>
-                            {attachment && (
-                                <div style={styles.attachTag}>
-                                    📎 {attachment.name}
-                                    <span onClick={() => setAttachment(null)} style={{ marginLeft: '8px', cursor: 'pointer' }}>✕</span>
-                                </div>
-                            )}
-                            <textarea
-                                style={styles.area}
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Type your question here... (Shift+Enter for new line)"
-                                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-                            />
-                            <div style={styles.barFooter}>
-                                <div style={styles.tools}>
-                                    <span 
-                                        onClick={() => filePickerRef.current?.click()} 
-                                        style={{ cursor: 'pointer', fontSize: '18px', opacity: 0.6, hover: { opacity: 1 } }}
-                                        title="Attach file"
-                                    >📎</span>
-                                    <input type="file" hidden ref={filePickerRef} onChange={(e) => setAttachment(e.target.files?.[0])} />
-                                    <span style={{ fontSize: '18px', opacity: 0.6 }} title="Web search">🔗</span>
-                                </div>
-                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                    <span 
-                                        onClick={toggleVoice} 
-                                        style={{ cursor: 'pointer', color: isListening ? '#ef4444' : '#999', fontSize: '20px', opacity: isListening ? 1 : 0.6 }}
-                                        title="Voice input"
-                                    >🎤</span>
-                                    <button 
-                                        style={{ ...styles.send, background: (input.trim() || attachment) ? '#0369a1' : '#d1d5db', cursor: (input.trim() || attachment) ? 'pointer' : 'not-allowed' }} 
-                                        onClick={handleSend}
-                                        disabled={!input.trim() && !attachment}
-                                    >
-                                        ↑
-                                    </button>
-                                </div>
+                {/* Input Area */}
+                <div style={styles.inputSection}>
+                    <div style={styles.inputWrapper}>
+                        <textarea
+                            style={styles.inputField}
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSend();
+                                }
+                            }}
+                            placeholder="Ask me anything... (Shift+Enter for new line)"
+                            disabled={isLoading}
+                        />
+                        <div style={styles.inputFooter}>
+                            <div style={styles.inputTools}>
+                                <button
+                                    onClick={() => filePickerRef.current?.click()}
+                                    style={styles.toolBtn}
+                                    title="Attach file"
+                                >
+                                    📎
+                                </button>
+                                <input 
+                                    type="file" 
+                                    ref={filePickerRef} 
+                                    style={{ display: 'none' }}
+                                />
+                                <button
+                                    onClick={toggleVoice}
+                                    style={{
+                                        ...styles.toolBtn,
+                                        color: isListening ? '#ef4444' : '#6b7280'
+                                    }}
+                                    title="Voice input"
+                                >
+                                    🎤
+                                </button>
                             </div>
+                            <button
+                                onClick={handleSend}
+                                disabled={!input.trim() || isLoading}
+                                style={{
+                                    ...styles.sendBtn,
+                                    background: (input.trim() && !isLoading) ? '#3b82f6' : '#d1d5db',
+                                    cursor: (input.trim() && !isLoading) ? 'pointer' : 'not-allowed'
+                                }}
+                            >
+                                {isLoading ? '⏳' : '↑'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -409,75 +394,392 @@ const AskSanju = () => {
 };
 
 const styles = {
-    // Main container
-    container: { display: 'flex', height: '100vh', background: '#fff', color: '#111', fontFamily: 'Inter, system-ui, sans-serif' },
+    container: {
+        display: 'flex',
+        height: '100vh',
+        background: '#fafbfc',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
     
-    // Sidebar styles
-    sidebar: { width: '280px', background: '#f5f5f5', borderRight: '1px solid #e5e5e5', padding: '20px', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
-    logoArea: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px' },
-    logoBox: { width: '36px', height: '36px', background: 'linear-gradient(135deg, #0369a1 0%, #0284c7 100%)', color: '#fff', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '18px' },
-    logoText: { fontSize: '20px', fontWeight: '800', letterSpacing: '-0.5px', color: '#111' },
-    newBtn: { background: '#fff', border: '1.5px solid #d0d0d0', padding: '12px 16px', borderRadius: '10px', fontWeight: '600', marginBottom: '20px', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s', fontSize: '14px' },
-    sectionTitle: { fontSize: '12px', fontWeight: '700', color: '#999', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px' },
-    historyList: { flex: 1, overflowY: 'auto', marginBottom: '16px' },
-    navLink: { padding: '10px 12px', borderRadius: '8px', fontSize: '14px', color: '#444', marginBottom: '6px', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'all 0.2s' },
-    sidebarFooter: { display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #e0e0e0', paddingTop: '16px', marginTop: 'auto' },
-    dashboardBtn: { background: '#fff', border: '1px solid #d0d0d0', padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' },
-    logoutBtn: { background: '#f5f5f5', border: '1px solid #d0d0d0', padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', color: '#d32f2f' },
+    // Sidebar
+    sidebar: {
+        width: '280px',
+        background: '#fff',
+        borderRight: '1px solid #e5e7eb',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+        overflowY: 'auto',
+    },
+    sidebarHeader: {
+        padding: '20px',
+        borderBottom: '1px solid #f3f4f6',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    logo: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+    },
+    logoIcon: {
+        fontSize: '24px',
+    },
+    logoText: {
+        fontSize: '20px',
+        fontWeight: '700',
+        color: '#111827',
+        margin: 0,
+    },
+    closeBtn: {
+        background: 'none',
+        border: 'none',
+        fontSize: '20px',
+        cursor: 'pointer',
+        color: '#6b7280',
+        display: 'none',
+    },
+    newChatBtn: {
+        margin: '16px',
+        padding: '12px 16px',
+        background: '#3b82f6',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '8px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'background 0.2s',
+    },
+    sidebarSection: {
+        flex: 1,
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+    },
+    sectionTitle: {
+        fontSize: '12px',
+        fontWeight: '700',
+        color: '#6b7280',
+        textTransform: 'uppercase',
+        margin: '0 0 12px 0',
+        letterSpacing: '0.5px',
+    },
+    chatList: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        flex: 1,
+        overflowY: 'auto',
+    },
+    chatItem: {
+        padding: '12px',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        transition: 'background 0.2s',
+    },
+    chatItemText: {
+        fontSize: '14px',
+        color: '#374151',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        flex: 1,
+    },
+    deleteBtn: {
+        background: 'none',
+        border: 'none',
+        color: '#9ca3af',
+        cursor: 'pointer',
+        fontSize: '14px',
+        opacity: 0,
+        transition: 'opacity 0.2s',
+    },
+    emptyText: {
+        color: '#9ca3af',
+        fontSize: '13px',
+        textAlign: 'center',
+        padding: '20px 0',
+    },
+    confirmDialog: {
+        padding: '12px',
+        background: '#fef2f2',
+        border: '1px solid #fee2e2',
+        borderRadius: '8px',
+        margin: '8px',
+    },
+    confirmButtons: {
+        display: 'flex',
+        gap: '8px',
+        marginTop: '8px',
+    },
+    confirmBtn: {
+        flex: 1,
+        padding: '6px',
+        background: '#ef4444',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px',
+        fontWeight: '600',
+    },
+    cancelBtn: {
+        flex: 1,
+        padding: '6px',
+        background: '#f3f4f6',
+        color: '#374151',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px',
+        fontWeight: '600',
+    },
+    sidebarFooter: {
+        padding: '16px',
+        borderTop: '1px solid #f3f4f6',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+    },
+    dashboardBtn: {
+        padding: '10px',
+        background: '#fff',
+        border: '1px solid #d1d5db',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '13px',
+        fontWeight: '600',
+        transition: 'all 0.2s',
+    },
+    logoutBtn: {
+        padding: '10px',
+        background: '#fff',
+        border: '1px solid #fed7d7',
+        color: '#dc2626',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '13px',
+        fontWeight: '600',
+        transition: 'all 0.2s',
+    },
     
-    // Main content area
-    main: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: '#fafafa' },
-    header: { height: '70px', borderBottom: '1px solid #e5e5e5', padding: '0 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
-    model: { fontWeight: '700', color: '#111', fontSize: '16px' },
-    modelSub: { fontSize: '12px', color: '#999', marginTop: '2px' },
-    userArea: { display: 'flex', alignItems: 'center', gap: '14px' },
-    userInfo: { textAlign: 'right' },
-    userName: { fontSize: '14px', color: '#111', fontWeight: '600' },
-    userEmail: { fontSize: '12px', color: '#999' },
-    avatar: { width: '40px', height: '40px', background: 'linear-gradient(135deg, #0369a1 0%, #0284c7 100%)', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '16px', boxShadow: '0 2px 8px rgba(3, 105, 161, 0.2)' },
-    scrollArea: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+    // Main Content
+    main: {
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+    },
+    header: {
+        height: '72px',
+        background: '#fff',
+        borderBottom: '1px solid #e5e7eb',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '0 24px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+    },
+    headerLeft: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+    },
+    menuBtn: {
+        background: 'none',
+        border: 'none',
+        fontSize: '20px',
+        cursor: 'pointer',
+        color: '#6b7280',
+    },
+    headerTitle: {
+        fontSize: '18px',
+        fontWeight: '700',
+        color: '#111827',
+        margin: 0,
+    },
+    headerSub: {
+        fontSize: '12px',
+        color: '#9ca3af',
+        margin: 0,
+    },
+    userProfile: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+    },
+    userEmail: {
+        fontSize: '13px',
+        color: '#6b7280',
+    },
+    avatar: {
+        width: '40px',
+        height: '40px',
+        background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+        color: '#fff',
+        borderRadius: '8px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: '700',
+        fontSize: '14px',
+    },
     
-    // Hero section
-    hero: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px' },
-    heroText: { fontSize: '42px', fontWeight: '800', letterSpacing: '-1px', color: '#111', textAlign: 'center' },
-    heroSubtext: { fontSize: '16px', color: '#666', marginTop: '12px', textAlign: 'center', maxWidth: '600px' },
-    suggestionsGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '28px', maxWidth: '400px' },
-    suggestion: { background: '#fff', border: '1px solid #e5e5e5', padding: '16px', borderRadius: '12px', textAlign: 'center', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+    // Chat Area
+    chatArea: {
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+    },
+    welcomeSection: {
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '40px',
+        textAlign: 'center',
+    },
+    welcomeIcon: {
+        fontSize: '64px',
+        marginBottom: '20px',
+    },
+    welcomeTitle: {
+        fontSize: '32px',
+        fontWeight: '700',
+        color: '#111827',
+        margin: '0 0 12px 0',
+    },
+    welcomeSubtitle: {
+        fontSize: '16px',
+        color: '#6b7280',
+        margin: '0 0 40px 0',
+    },
+    suggestionsGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: '16px',
+        maxWidth: '600px',
+    },
+    suggestionCard: {
+        padding: '16px',
+        background: '#f9fafb',
+        border: '1px solid #e5e7eb',
+        borderRadius: '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '8px',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+    },
+    suggestionIcon: {
+        fontSize: '24px',
+    },
+    messagesList: {
+        flex: 1,
+        overflowY: 'auto',
+        padding: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+    },
+    messageWrapper: {
+        display: 'flex',
+        justifyContent: 'flex-start',
+    },
+    messageBubble: {
+        padding: '12px 16px',
+        borderRadius: '12px',
+        wordWrap: 'break-word',
+    },
+    messageText: {
+        margin: '0 0 4px 0',
+        fontSize: '14px',
+        lineHeight: '1.5',
+    },
+    messageTime: {
+        fontSize: '11px',
+        opacity: 0.7,
+    },
+    typingBubble: {
+        display: 'flex',
+        gap: '6px',
+        padding: '12px 16px',
+        background: '#f3f4f6',
+        borderRadius: '12px',
+        width: 'fit-content',
+    },
+    typingDot: {
+        width: '8px',
+        height: '8px',
+        background: '#9ca3af',
+        borderRadius: '50%',
+        animation: 'pulse 1.4s infinite',
+    },
     
-    // Messages
-    msgList: { flex: 1, overflowY: 'auto', padding: '32px 40px', background: '#fafafa' },
-    msgWrap: { display: 'flex', gap: '16px', maxWidth: '900px', margin: '0 auto 24px', width: '100%' },
-    msgIcon: { width: '40px', height: '40px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', flexShrink: 0, fontSize: '11px' },
-    msgBody: { flex: 1 },
-    msgHeader: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' },
-    msgRole: { display: 'inline', fontSize: '14px', fontWeight: '700', color: '#111' },
-    timestamp: { fontSize: '12px', color: '#999' },
-    msgTxt: { fontSize: '15px', lineHeight: '1.6', color: '#222', background: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #f0f0f0' },
-    typing: { fontSize: '14px', color: '#666', fontStyle: 'italic' },
-    img: { maxWidth: '100%', borderRadius: '12px', border: '1px solid #e5e5e5', marginTop: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
-    
-    // Input area
-    inputStack: { padding: '32px 40px', width: '100%', maxWidth: '100%', background: '#fafafa' },
-    inputBar: { border: '1.5px solid #e5e5e5', borderRadius: '16px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', background: '#fff', maxWidth: '900px', margin: '0 auto' },
-    attachTag: { background: '#0369a1', color: '#fff', fontSize: '12px', padding: '6px 12px', borderRadius: '8px', display: 'inline-block', marginBottom: '8px', fontWeight: '600' },
-    area: { border: 'none', outline: 'none', width: '100%', height: '60px', resize: 'none', fontSize: '15px', fontFamily: 'inherit', color: '#111' },
-    barFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', borderTop: '1px solid #f0f0f0', paddingTop: '12px' },
-    tools: { color: '#999', fontSize: '18px', display: 'flex', gap: '16px' },
-    send: { width: '40px', height: '40px', borderRadius: '50%', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 'bold', transition: 'all 0.2s' },
-    
-    // Auth modal
-    authModalContainer: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, system-ui, sans-serif' },
-    authModal: { background: '#fff', borderRadius: '16px', padding: '40px', maxWidth: '500px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' },
-    authHeader: { textAlign: 'center', marginBottom: '32px' },
-    authTitle: { fontSize: '32px', fontWeight: '800', color: '#111', marginBottom: '8px' },
-    authSubtitle: { fontSize: '16px', color: '#666' },
-    authContent: { marginBottom: '28px' },
-    authDescription: { fontSize: '15px', color: '#555', lineHeight: '1.6', marginBottom: '20px' },
-    authFeatures: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
-    feature: { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#333', fontWeight: '500' },
-    featureIcon: { fontSize: '20px' },
-    authActions: { display: 'flex', flexDirection: 'column', gap: '12px' },
-    authBtn: { padding: '12px 16px', borderRadius: '10px', border: 'none', fontSize: '15px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }
+    // Input Area
+    inputSection: {
+        padding: '20px 24px',
+        background: '#fff',
+        borderTop: '1px solid #e5e7eb',
+    },
+    inputWrapper: {
+        maxWidth: '900px',
+        margin: '0 auto',
+        width: '100%',
+    },
+    inputField: {
+        width: '100%',
+        padding: '14px 16px',
+        background: '#f9fafb',
+        border: '1px solid #e5e7eb',
+        borderRadius: '10px',
+        fontSize: '14px',
+        fontFamily: 'inherit',
+        resize: 'none',
+        maxHeight: '120px',
+        outline: 'none',
+        transition: 'border-color 0.2s',
+    },
+    inputFooter: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: '12px',
+    },
+    inputTools: {
+        display: 'flex',
+        gap: '8px',
+    },
+    toolBtn: {
+        background: 'none',
+        border: 'none',
+        fontSize: '18px',
+        cursor: 'pointer',
+        color: '#6b7280',
+        padding: '4px 8px',
+        transition: 'color 0.2s',
+    },
+    sendBtn: {
+        width: '40px',
+        height: '40px',
+        borderRadius: '8px',
+        border: 'none',
+        color: '#fff',
+        fontSize: '20px',
+        cursor: 'pointer',
+        transition: 'background 0.2s',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 'bold',
+    },
 };
 
-export default AskSanju;
+export default AskAI;
