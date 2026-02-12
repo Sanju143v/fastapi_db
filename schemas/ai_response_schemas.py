@@ -6,3 +6,7 @@ class AIRequest(BaseModel):
 
 class AIResponse(BaseModel):
     response: str
+
+class ImageResponse(BaseModel):
+    image_url: str
+    prompt: str

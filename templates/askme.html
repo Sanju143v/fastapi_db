@@ -4,15 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AskMe AI | MyApp</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>AskSanju 2.0 | Complete Bot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #4318ff;
-            --bg: #f4f7fe;
-            --white: #ffffff;
-            --text-dark: #1b2559;
-            --text-gray: #a3aed0;
+            --primary: #000;
+            --bg: #ffffff;
+            --sidebar-bg: #f8f9fa;
+            --border: #ececf1;
+            --text: #374151;
+            --dim: #6e6e80;
+            --accent: #10a37f;
         }
 
         * {
@@ -22,186 +24,307 @@
         }
 
         body {
-            background: var(--bg);
             font-family: 'Inter', sans-serif;
-            color: var(--text-dark);
+            background: var(--bg);
+            color: var(--text);
             height: 100vh;
+            display: flex;
             overflow: hidden;
         }
 
-        .container {
-            display: flex;
-            height: 100vh;
-        }
-
-        /* Sidebar */
         .sidebar {
-            width: 280px;
-            background: var(--white);
-            border-right: 1px solid #e9edf7;
-            padding: 40px 30px;
+            width: 260px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
+            padding: 16px;
+            flex-shrink: 0;
+        }
+
+        .logo-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+            padding: 4px;
+        }
+
+        .logo-box {
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 16px;
         }
 
         .brand {
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: -0.5px;
+        }
+
+        .btn-new {
+            background: white;
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
-            gap: 15px;
-            margin-bottom: 50px;
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .brand span:first-child {
-            font-size: 30px;
-        }
-
-        .brand b {
-            font-size: 24px;
-            font-weight: 800;
-        }
-
-        .nav {
-            list-style: none;
-            flex: 1;
-        }
-
-        .nav-item {
-            padding: 15px 20px;
-            border-radius: 15px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: var(--text-gray);
+            gap: 10px;
             font-weight: 600;
+            font-size: 14px;
             cursor: pointer;
-            transition: 0.3s;
+            margin-bottom: 20px;
         }
 
-        .nav-item:hover {
-            color: var(--primary);
-            background: var(--bg);
+        .btn-new:hover {
+            background: #f1f1f1;
         }
 
-        .nav-item.active {
-            color: var(--primary);
-            background: var(--bg);
+        .hist-head {
+            font-size: 11px;
+            font-weight: 700;
+            color: #999;
+            text-transform: uppercase;
+            margin: 10px 0 10px 8px;
         }
 
-        /* Chat Area */
-        .chat-main {
+        .recent {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .hist-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--text);
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hist-item:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .hist-item.active {
+            background: rgba(0, 0, 0, 0.08);
+            font-weight: 600;
+        }
+
+        .main {
             flex: 1;
             display: flex;
             flex-direction: column;
+            min-width: 0;
         }
 
         .header {
-            height: 80px;
-            background: var(--white);
-            border-bottom: 1px solid #e9edf7;
+            height: 60px;
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
-            padding: 0 50px;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
         }
 
-        .header h2 {
-            font-size: 20px;
-            font-weight: 700;
-        }
-
-        #chat-container {
-            flex: 1;
-            padding: 40px 50px;
-            overflow-y: auto;
+        .user-box {
             display: flex;
-            flexDirection: column;
-            gap: 25px;
+            align-items: center;
+            gap: 12px;
         }
 
-        .message {
-            max-width: 80%;
-            padding: 18px 25px;
-            border-radius: 20px;
-            font-size: 15px;
-            line-height: 1.6;
-            animation: slideIn 0.3s ease-out;
+        .u-email {
+            font-size: 12px;
+            color: var(--dim);
         }
 
-        .user-msg {
-            align-self: flex-end;
-            background: var(--primary);
+        .u-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #065f46;
             color: white;
-            border-bottom-right-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
         }
 
-        .ai-msg {
-            align-self: flex-start;
-            background: var(--white);
+        .stage {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #chats {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px 20px;
+            display: none;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .hero {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 40px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .msg {
+            display: flex;
+            gap: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .msg-av {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+        }
+
+        .msg-tx {
+            flex: 1;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        .msg-tx b {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #555;
+        }
+
+        .res-img {
+            max-width: 100%;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-top: 10px;
+        }
+
+        .input-stack {
+            width: 100%;
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+        }
+
+        .box {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 12px 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-            border-bottom-left-radius: 5px;
         }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        textarea {
+            border: none;
+            outline: none;
+            resize: none;
+            width: 100%;
+            height: 60px;
+            font-size: 15px;
+            font-family: inherit;
         }
 
-        .input-area {
-            background: var(--white);
-            padding: 30px 50px;
-            border-top: 1px solid #e9edf7;
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            border-top: 1px solid #f9f9f9;
+            padding-top: 10px;
+        }
+
+        .f-l,
+        .f-r {
             display: flex;
             gap: 15px;
+            align-items: center;
         }
 
-        #user-input {
-            flex: 1;
-            border: none;
-            background: var(--bg);
-            padding: 15px 30px;
-            border-radius: 30px;
-            outline: none;
-            font-size: 15px;
-        }
-
-        .send-btn {
-            background: var(--primary);
-            border: none;
-            padding: 10px 30px;
-            border-radius: 30px;
-            color: white;
-            font-weight: 700;
+        .icon {
             cursor: pointer;
+            font-size: 18px;
+            color: #aaa;
+            transition: color 0.2s;
+        }
+
+        .icon:hover {
+            color: #000;
+        }
+
+        .icon.active {
+            color: #ef4444;
+        }
+
+        .send {
+            width: 32px;
+            height: 32px;
+            background: #e0e0e0;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: 0.3s;
         }
 
-        .send-btn:hover {
-            transform: scale(1.05);
-            filter: brightness(1.1);
+        .send.on {
+            background: #000;
         }
 
-        /* Typing Dot Animation */
-        .typing {
+        .loader {
             display: flex;
-            gap: 5px;
+            gap: 4px;
+            padding: 10px;
         }
 
         .dot {
-            width: 8px;
-            height: 8px;
-            background: var(--text-gray);
+            width: 5px;
+            height: 5px;
+            background: #ddd;
             border-radius: 50%;
-            animation: blink 1.4s infinite both;
+            animation: blink 1.4s infinite;
         }
 
         .dot:nth-child(2) {
@@ -213,97 +336,196 @@
         }
 
         @keyframes blink {
-
-            0%,
-            80%,
-            100% {
-                opacity: 0;
+            0% {
+                opacity: 0.2;
             }
 
-            40% {
+            20% {
                 opacity: 1;
+            }
+
+            100% {
+                opacity: 0.2;
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <a href="/dashboard" class="brand">
-                <span>📱</span>
-                <b>MYAPP</b>
-            </a>
-            <ul class="nav">
-                <li class="nav-item" onclick="location.href='/dashboard'"><i>🏠</i> Dashboard</li>
-                <li class="nav-item active"><i>🤖</i> AskAI</li>
-            </ul>
+    <div class="sidebar">
+        <div class="logo-row">
+            <div class="logo-box">S</div>
+            <div class="brand">AskSanju</div>
         </div>
+        <button class="btn-new" id="btn-new"><span>+</span> New session</button>
+        <div class="hist-head">History</div>
+        <div class="recent" id="hist-list"></div>
+    </div>
 
-        <div class="chat-main">
-            <header class="header">
-                <h2>🤖 AskMe AI</h2>
-            </header>
-
-            <div id="chat-container">
-                <div class="message ai-msg">Hi there! I'm your human-friendly MyApp assistant. How can I help you today?
-                    ✨</div>
+    <div class="main">
+        <header class="header">
+            <div>AskSanju 2.1 Multilingual</div>
+            <div class="user-box">
+                <span class="u-email" id="u-email">guest@sanju.com</span>
+                <div class="u-avatar" id="u-av">?</div>
             </div>
+        </header>
 
-            <form class="input-area" id="chat-form">
-                <input type="text" id="user-input" placeholder="Ask me anything..." autocomplete="off">
-                <button type="submit" class="send-btn">Send 🚀</button>
-            </form>
+        <div class="stage">
+            <div id="hero" class="hero">
+                <h1>Hello, I'm Sanju.</h1>
+                <p>I can help you in English, Kannada, or Hindi.</p>
+            </div>
+            <div id="chats"></div>
+
+            <div class="input-stack">
+                <div class="box">
+                    <textarea id="msg-in" placeholder="Ask anything..."></textarea>
+                    <div class="footer">
+                        <div class="f-l">
+                            <span class="icon" id="btn-file">📎</span>
+                            <input type="file" id="picker" style="display:none">
+                            <span class="icon">⛓</span>
+                        </div>
+                        <div class="f-r">
+                            <span class="icon" id="btn-mic">🎤</span>
+                            <button id="btn-send" class="send">↑</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        const chatForm = document.getElementById('chat-form');
-        const userInput = document.getElementById('user-input');
-        const chatContainer = document.getElementById('chat-container');
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('msg-in');
+            const sendBtn = document.getElementById('btn-send');
+            const hero = document.getElementById('hero');
+            const chats = document.getElementById('chats');
+            const histList = document.getElementById('hist-list');
+            const micBtn = document.getElementById('btn-mic');
 
-        function appendMessage(role, content) {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message ' + (role === 'user' ? 'user-msg' : 'ai-msg');
-            msgDiv.innerHTML = content;
-            chatContainer.appendChild(msgDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-            return msgDiv;
-        }
+            const email = localStorage.getItem('user_email') || 'guest@sanju.com';
+            document.getElementById('u-email').innerText = email;
+            document.getElementById('u-av').innerText = email[0].toUpperCase();
 
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = userInput.value.trim();
-            if (!text) return;
+            const cacheKey = `sanju_v2_cache_${email}`;
+            let sessions = [];
+            try { sessions = JSON.parse(localStorage.getItem(cacheKey) || '[]'); } catch (e) { sessions = []; }
+            let sessionId = null;
 
-            userInput.value = '';
-            appendMessage('user', text);
-
-            // Typing indicator
-            const typingDiv = appendMessage('ai', '<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>');
-
-            try {
-                const res = await fetch('/ask', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: text,
-                        system_prompt: "You are a friendly, conversational human-like assistant for MyApp. Be helpful, concise, and professional yet warm."
-                    })
+            function refreshHist() {
+                histList.innerHTML = '';
+                sessions.forEach(s => {
+                    const d = document.createElement('div');
+                    d.className = `hist-item ${s.id === sessionId ? 'active' : ''}`;
+                    d.innerHTML = `💬 ${s.title}`;
+                    d.onclick = () => load(s.id);
+                    histList.appendChild(d);
                 });
-
-                const data = await res.json();
-                typingDiv.remove();
-
-                if (res.ok) {
-                    appendMessage('ai', data.response);
-                } else {
-                    appendMessage('ai', "I hit a snag. Could you try asking that again?");
-                }
-            } catch (err) {
-                typingDiv.remove();
-                appendMessage('ai', "Oops! Network issues. Let's try once more.");
             }
+
+            function load(id) {
+                sessionId = id;
+                const s = sessions.find(x => x.id === id);
+                if (s) {
+                    hero.style.display = 'none';
+                    chats.style.display = 'flex';
+                    chats.innerHTML = '';
+                    s.msgs.forEach(m => draw(m.role, m.txt, m.type));
+                    refreshHist();
+                }
+            }
+
+            // Voice
+            let rec;
+            if ('webkitSpeechRecognition' in window) {
+                rec = new webkitSpeechRecognition();
+                rec.onstart = () => micBtn.classList.add('active');
+                rec.onend = () => micBtn.classList.remove('active');
+                rec.onresult = (e) => {
+                    input.value += (input.value ? ' ' : '') + e.results[0][0].transcript;
+                    sendBtn.classList.add('on');
+                };
+            }
+            micBtn.onclick = () => { if (rec) rec.start(); else alert('No voice'); };
+
+            document.getElementById('btn-new').onclick = () => {
+                sessionId = null;
+                hero.style.display = 'flex';
+                chats.style.display = 'none';
+                input.value = '';
+            };
+
+            input.oninput = () => sendBtn.classList.toggle('on', input.value.trim().length > 0);
+
+            async function send() {
+                const txt = input.value.trim();
+                if (!txt) return;
+
+                hero.style.display = 'none';
+                chats.style.display = 'flex';
+                draw('You', txt, 'user');
+
+                if (!sessionId) {
+                    sessionId = Date.now();
+                    sessions.unshift({ id: sessionId, title: txt.substring(0, 20), msgs: [] });
+                }
+                const s = sessions.find(x => x.id === sessionId);
+                s.msgs.push({ role: 'You', txt, type: 'user' });
+
+                input.value = '';
+                sendBtn.classList.remove('on');
+
+                const isImg = txt.toLowerCase().match(/image|generate|draw/);
+                const api = isImg ? '/generate-image' : '/ask';
+
+                const dot = document.createElement('div');
+                dot.className = 'loader';
+                dot.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+                chats.appendChild(dot);
+                chats.scrollTop = chats.scrollHeight;
+
+                try {
+                    const r = await fetch(api, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: txt, system_prompt: "You are AskSanju. Be brief and professional." })
+                    });
+                    const d = await r.json();
+                    dot.remove();
+
+                    if (isImg && d.image_url) {
+                        draw('AskSanju', d.image_url, 'img');
+                        s.msgs.push({ role: 'AskSanju', txt: d.image_url, type: 'img' });
+                    } else {
+                        const rep = d.response || "...";
+                        draw('AskSanju', rep, 'ai');
+                        s.msgs.push({ role: 'AskSanju', txt: rep, type: 'ai' });
+                    }
+                    localStorage.setItem(cacheKey, JSON.stringify(sessions));
+                    refreshHist();
+                } catch (e) {
+                    dot.remove();
+                    draw('AskSanju', 'Error connecting.', 'ai');
+                }
+            }
+
+            function draw(role, txt, type) {
+                const div = document.createElement('div');
+                div.className = 'msg';
+                const avBg = role === 'You' ? '#eee' : '#000';
+                const avColor = role === 'You' ? '#000' : '#fff';
+                const body = type === 'img' ? `<img src="${txt}" class="res-img">` : `<div>${txt}</div>`;
+                div.innerHTML = `<div class="msg-av" style="background:${avBg};color:${avColor}">${role[0]}</div><div class="msg-tx"><b>${role}</b>${body}</div>`;
+                chats.appendChild(div);
+                chats.scrollTop = chats.scrollHeight;
+            }
+
+            sendBtn.onclick = send;
+            input.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+            refreshHist();
         });
     </script>
 </body>

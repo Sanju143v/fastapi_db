@@ -24,9 +24,10 @@ const Login = () => {
             const data = await response.json();
 
             if (response.ok) {
-                // Store tokens
+                // Store tokens and user info
                 localStorage.setItem('access_token', data.access_token);
                 localStorage.setItem('refresh_token', data.refresh_token);
+                localStorage.setItem('user_email', email); // For scoped history
 
                 setMessage('Login successful! Redirecting...');
                 setIsError(false);
