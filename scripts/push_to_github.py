@@ -4,8 +4,10 @@ import subprocess
 import os
 import sys
 
-# Change to project directory
-os.chdir('/vercel/share/v0-project')
+# Get current directory where this script runs from
+project_dir = os.getcwd()
+print(f"[v0] Current working directory: {project_dir}")
+print(f"[v0] Files in directory: {os.listdir(project_dir)[:5]}")
 
 try:
     # Configure git
